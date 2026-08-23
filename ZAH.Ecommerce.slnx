@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ZAH.API/ZAH.API.csproj" />
+    <Project Path="src/ZAH.Application/ZAH.Application.csproj" />
+    <Project Path="src/ZAH.Domain/ZAH.Domain.csproj" />
+    <Project Path="src/ZAH.Infrastructure/ZAH.Infrastructure.csproj" />
+    <Project Path="src/ZAH.Shared/ZAH.Shared.csproj" />
+  </Folder>
+</Solution>

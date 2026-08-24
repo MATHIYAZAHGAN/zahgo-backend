@@ -99,10 +99,21 @@ try
     {
         options.AddPolicy("ZAHCorsPolicy", policy =>
         {
-            policy.WithOrigins(allowedOrigins)
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials();
+            if (builder.Environment.IsDevelopment() || allowedOrigins.Length == 0)
+            {
+                // Allow all origins in development or when no origins configured
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            }
+            else
+            {
+                // Restrict to specific origins in production
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials();
+            }
         });
     });
 

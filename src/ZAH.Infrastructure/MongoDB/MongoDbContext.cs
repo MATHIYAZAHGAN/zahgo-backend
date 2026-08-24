@@ -14,11 +14,15 @@ public class MongoDbContext
         var connectionString = settings.Value.ConnectionString;
         var clientSettings = MongoClientSettings.FromConnectionString(connectionString);
         
-        // Remove SSL settings to use default (let MongoDB driver handle it)
-        // clientSettings.SslSettings = new SslSettings
-        // {
-        //     EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
-        // };
+        // Configure SSL/TLS for .NET 8 + MongoDB Atlas compatibility
+        clientSettings.SslSettings = new SslSettings
+        {
+            EnabledSslProtocols = SslProtocols.Tls12
+        };
+        
+        // Increase server selection timeout for cloud deployments
+        clientSettings.ServerSelectionTimeout = TimeSpan.FromSeconds(30);
+        clientSettings.ConnectTimeout = TimeSpan.FromSeconds(30);
 
         var client = new MongoClient(clientSettings);
         _database = client.GetDatabase(settings.Value.DatabaseName);

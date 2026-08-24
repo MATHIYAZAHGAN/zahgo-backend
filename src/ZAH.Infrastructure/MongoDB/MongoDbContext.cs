@@ -13,10 +13,12 @@ public class MongoDbContext
     {
         var connectionString = settings.Value.ConnectionString;
         var clientSettings = MongoClientSettings.FromConnectionString(connectionString);
-        clientSettings.SslSettings = new SslSettings
-        {
-            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
-        };
+        
+        // Remove SSL settings to use default (let MongoDB driver handle it)
+        // clientSettings.SslSettings = new SslSettings
+        // {
+        //     EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+        // };
 
         var client = new MongoClient(clientSettings);
         _database = client.GetDatabase(settings.Value.DatabaseName);

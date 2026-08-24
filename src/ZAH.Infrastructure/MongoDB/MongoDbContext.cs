@@ -14,15 +14,17 @@ public class MongoDbContext
         var connectionString = settings.Value.ConnectionString;
         var clientSettings = MongoClientSettings.FromConnectionString(connectionString);
         
-        // Configure SSL/TLS for .NET 8 + MongoDB Atlas compatibility
+        // Configure SSL/TLS for MongoDB Atlas in container environment
         clientSettings.SslSettings = new SslSettings
         {
-            EnabledSslProtocols = SslProtocols.Tls12
+            EnabledSslProtocols = SslProtocols.Tls12,
+            CheckCertificateRevocation = false
         };
         
-        // Increase server selection timeout for cloud deployments
+        // Increase timeouts for cloud deployments
         clientSettings.ServerSelectionTimeout = TimeSpan.FromSeconds(30);
         clientSettings.ConnectTimeout = TimeSpan.FromSeconds(30);
+        clientSettings.SocketTimeout = TimeSpan.FromSeconds(30);
 
         var client = new MongoClient(clientSettings);
         _database = client.GetDatabase(settings.Value.DatabaseName);

@@ -2,6 +2,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
+# Install ca-certificates for SSL/TLS
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
+
 # Copy everything
 COPY . .
 
@@ -13,6 +16,9 @@ RUN dotnet publish -c Release -o /app/out
 # Runtime Stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
+
+# Install ca-certificates for SSL/TLS
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy published app
 COPY --from=build /app/out .

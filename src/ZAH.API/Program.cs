@@ -25,12 +25,36 @@ try
     builder.Host.UseSerilog();
 
     // MongoDB Configuration
-    builder.Services.Configure<MongoDbSettings>(
-        builder.Configuration.GetSection("MongoDB"));
+    var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
+    if (string.IsNullOrWhiteSpace(mongoConnectionString) || mongoConnectionString.StartsWith("${"))
+    {
+        mongoConnectionString = builder.Configuration["MONGODB_CONNECTION_STRING"]
+                             ?? Environment.GetEnvironmentVariable("MONGODB_CONNECTION_STRING")
+                             ?? Environment.GetEnvironmentVariable("MongoDB__ConnectionString")
+                             ?? "mongodb+srv://zahgo:zahgo*51228@cluster0.fpiizwe.mongodb.net/?appName=Cluster0";
+    }
+
+    builder.Services.Configure<MongoDbSettings>(options =>
+    {
+        options.ConnectionString = mongoConnectionString ?? string.Empty;
+        options.DatabaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "zah_ecommerce";
+    });
     builder.Services.AddSingleton<MongoDbContext>();
 
     // JWT Configuration
-    var jwtSecret = builder.Configuration["JWT:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
+    var jwtSecret = builder.Configuration["JWT:Secret"];
+    if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.StartsWith("${"))
+    {
+        jwtSecret = builder.Configuration["JWT_SECRET"]
+                 ?? Environment.GetEnvironmentVariable("JWT_SECRET")
+                 ?? Environment.GetEnvironmentVariable("JWT__Secret");
+    }
+
+    if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret.StartsWith("${"))
+    {
+        throw new InvalidOperationException("JWT Secret not configured. Please ensure JWT_SECRET environment variable is set in Render dashboard.");
+    }
+
     var jwtIssuer = builder.Configuration["JWT:Issuer"] ?? "ZAH.API";
     var jwtAudience = builder.Configuration["JWT:Audience"] ?? "ZAH.Client";
 

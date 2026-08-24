@@ -17,13 +17,14 @@ public class HealthController : ControllerBase
     [HttpGet]
     public ActionResult<ApiResponse> Get()
     {
-        _logger.LogInformation("Health check requested");
+        _logger.LogInformation("Health check requested at {Time}", DateTime.UtcNow);
         
         return Ok(ApiResponse.SuccessResponse(new
         {
             status = "healthy",
             timestamp = DateTime.UtcNow,
-            version = "1.0.0"
+            version = "1.0.1",
+            database = "zahgo"
         }, "ZAH API is running"));
     }
 }

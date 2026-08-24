@@ -1,0 +1,41 @@
+==============================================================
+MONGODB ATLAS CONNECTION STRING FOR RENDER
+==============================================================
+
+IMPORTANT: Update this in your Render dashboard under Environment Variables
+
+Variable Name: MongoDB__ConnectionString
+
+Connection String Format (choose ONE):
+
+OPTION 1 - Standard (Recommended):
+mongodb+srv://zahgo:zahgo*51228@cluster0.fpiizwe.mongodb.net/zahgo?retryWrites=true&w=majority&tls=true
+
+OPTION 2 - With TLS Insecure (if SSL errors persist):
+mongodb+srv://zahgo:zahgo*51228@cluster0.fpiizwe.mongodb.net/zahgo?retryWrites=true&w=majority&tlsInsecure=true
+
+OPTION 3 - Explicit TLS v1.2:
+mongodb+srv://zahgo:zahgo*51228@cluster0.fpiizwe.mongodb.net/zahgo?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true
+
+==============================================================
+HOW TO UPDATE IN RENDER:
+==============================================================
+
+1. Go to: https://dashboard.render.com
+2. Select your service: zahgo-backend
+3. Click "Environment" tab
+4. Find MongoDB__ConnectionString
+5. Update the value with one of the options above
+6. Click "Save Changes"
+7. Service will auto-redeploy
+
+==============================================================
+NOTES:
+==============================================================
+
+- Replace "zahgo*51228" with your actual password if different
+- The database name "zahgo" is included in the path
+- Make sure there are NO extra spaces or line breaks
+- The double underscore (__) in MongoDB__ConnectionString is correct
+
+==============================================================

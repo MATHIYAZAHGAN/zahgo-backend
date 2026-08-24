@@ -50,7 +50,7 @@ try
     builder.Services.Configure<MongoDbSettings>(options =>
     {
         options.ConnectionString = mongoConnectionString ?? string.Empty;
-        options.DatabaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "zah_ecommerce";
+        options.DatabaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "zahgo";
     });
     builder.Services.AddSingleton<MongoDbContext>();
 

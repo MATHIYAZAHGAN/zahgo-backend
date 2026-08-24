@@ -1,30 +1,21 @@
 # Build Stage - Using .NET 9 as .NET 10 images don't exist yet
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
+WORKDIR /app
 
-# Copy solution and project files
-COPY ["src/ZAH.API/ZAH.API.csproj", "ZAH.API/"]
-COPY ["src/ZAH.Application/ZAH.Application.csproj", "ZAH.Application/"]
-COPY ["src/ZAH.Domain/ZAH.Domain.csproj", "ZAH.Domain/"]
-COPY ["src/ZAH.Infrastructure/ZAH.Infrastructure.csproj", "ZAH.Infrastructure/"]
-COPY ["src/ZAH.Shared/ZAH.Shared.csproj", "ZAH.Shared/"]
+# Copy everything
+COPY . .
 
-# Restore dependencies
-RUN dotnet restore "ZAH.API/ZAH.API.csproj"
-
-# Copy all source code
-COPY src/ .
-
-# Build and publish
-WORKDIR "/src/ZAH.API"
-RUN dotnet publish "ZAH.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+# Restore and build from the API project
+WORKDIR /app/src/ZAH.API
+RUN dotnet restore
+RUN dotnet publish -c Release -o /app/out
 
 # Runtime Stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
 # Copy published app
-COPY --from=build /app/publish .
+COPY --from=build /app/out .
 
 # Expose port
 EXPOSE 8080

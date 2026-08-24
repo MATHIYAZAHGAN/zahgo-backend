@@ -155,11 +155,18 @@ try
     app.MapControllers();
 
     // Seed Database
-    using (var scope = app.Services.CreateScope())
+    try
     {
-        var seeder = new ZAH.Infrastructure.Seeding.DatabaseSeeder(
-            scope.ServiceProvider.GetRequiredService<MongoDbContext>());
-        await seeder.SeedAsync();
+        using (var scope = app.Services.CreateScope())
+        {
+            var seeder = new ZAH.Infrastructure.Seeding.DatabaseSeeder(
+                scope.ServiceProvider.GetRequiredService<MongoDbContext>());
+            await seeder.SeedAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Database seeding failed on startup. Application will continue starting.");
     }
 
     Log.Information("ZAH API Started Successfully");

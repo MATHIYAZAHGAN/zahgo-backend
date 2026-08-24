@@ -19,7 +19,20 @@ try
 {
     Log.Information("Starting ZAH E-Commerce API");
 
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+    {
+        Args = args,
+        ContentRootPath = Directory.GetCurrentDirectory(),
+        // Disable file watching in production
+        EnvironmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"
+    });
+
+    // Disable file watching for configuration files
+    builder.Configuration.Sources.Clear();
+    builder.Configuration
+        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+        .AddEnvironmentVariables();
 
     // Add Serilog
     builder.Host.UseSerilog();

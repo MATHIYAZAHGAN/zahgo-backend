@@ -100,15 +100,13 @@ try
     var app = builder.Build();
 
     // Configure HTTP Request Pipeline
-    if (app.Environment.IsDevelopment())
+    // Enable Swagger in all environments
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
     {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "ZAH E-Commerce API v1");
-            c.RoutePrefix = "swagger";
-        });
-    }
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "ZAH E-Commerce API v1");
+        c.RoutePrefix = "swagger";
+    });
 
     // Global Exception Handling Middleware
     app.UseMiddleware<GlobalExceptionMiddleware>();

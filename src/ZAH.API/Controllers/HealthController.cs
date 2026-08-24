@@ -25,15 +25,12 @@ public class HealthController : ControllerBase
 
         // Test MongoDB connection
         string dbStatus = "unknown";
-        string dbName = "unknown";
         long productCount = 0;
         string errorMessage = "";
 
         try
         {
-            dbName = _mongoDbContext.Database.DatabaseNamespace.DatabaseName;
-            var products = _mongoDbContext.Database.GetCollection<dynamic>("products");
-            productCount = await products.CountDocumentsAsync(Builders<dynamic>.Filter.Empty);
+            productCount = await _mongoDbContext.Products.CountDocumentsAsync(FilterDefinition<Domain.Entities.Product>.Empty);
             dbStatus = "connected";
         }
         catch (Exception ex)
@@ -47,10 +44,9 @@ public class HealthController : ControllerBase
         {
             status = "healthy",
             timestamp = DateTime.UtcNow,
-            version = "1.0.1",
+            version = "1.0.2",
             database = new
             {
-                name = dbName,
                 status = dbStatus,
                 productCount = productCount,
                 error = errorMessage

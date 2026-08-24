@@ -1,5 +1,5 @@
-# Build Stage - Using .NET 9 as .NET 10 images don't exist yet
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+# Build Stage - Using .NET 8 for better MongoDB driver compatibility
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
 # Copy everything
@@ -11,7 +11,7 @@ RUN dotnet restore
 RUN dotnet publish -c Release -o /app/out
 
 # Runtime Stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
 # Copy published app

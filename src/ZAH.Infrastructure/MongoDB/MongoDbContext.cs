@@ -1,3 +1,4 @@
+using System.Security.Authentication;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using ZAH.Domain.Entities;
@@ -10,7 +11,14 @@ public class MongoDbContext
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
-        var client = new MongoClient(settings.Value.ConnectionString);
+        var connectionString = settings.Value.ConnectionString;
+        var clientSettings = MongoClientSettings.FromConnectionString(connectionString);
+        clientSettings.SslSettings = new SslSettings
+        {
+            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+        };
+
+        var client = new MongoClient(clientSettings);
         _database = client.GetDatabase(settings.Value.DatabaseName);
     }
 

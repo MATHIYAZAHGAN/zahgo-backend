@@ -1,0 +1,111 @@
+========================================
+  ZAH BACKEND - RENDER DEPLOYMENT
+  (NO CREDIT CARD NEEDED - 100% FREE)
+========================================
+
+SUPER SIMPLE 5-STEP PROCESS:
+
+========================================
+STEP 1: SETUP MONGODB (5 minutes)
+========================================
+
+1. Go to: https://www.mongodb.com/cloud/atlas/register
+2. Sign up FREE (no card needed)
+3. Create FREE M0 cluster
+4. Database Access: Create user + password
+5. Network Access: Add IP 0.0.0.0/0
+6. Get connection string and save it
+
+
+========================================
+STEP 2: PUSH TO GITHUB (2 minutes)
+========================================
+
+Open terminal in this folder:
+
+cd "c:\Users\Mathi\OneDrive\Desktop\ZAHGO-BACKEND\zah-backend"
+
+git init
+git add .
+git commit -m "Initial commit"
+
+Then:
+1. Go to: https://github.com/new
+2. Create repository: zah-backend (private)
+3. Copy the commands shown and run them
+
+
+========================================
+STEP 3: SIGN UP ON RENDER (1 minute)
+========================================
+
+1. Go to: https://render.com/
+2. Click "Get Started for Free"
+3. Sign up with GitHub (easiest)
+4. Authorize Render
+
+
+========================================
+STEP 4: DEPLOY (2 minutes)
+========================================
+
+1. In Render dashboard: Click "New +" → "Web Service"
+2. Connect your GitHub repo: zah-backend
+3. Settings:
+   - Name: zahgo-backend
+   - Runtime: Docker
+   - Plan: FREE
+4. Click "Create Web Service"
+5. Wait 5-10 minutes
+
+
+========================================
+STEP 5: SET ENVIRONMENT VARIABLES
+========================================
+
+In Render dashboard → Environment tab:
+
+Variable 1:
+Key:   MONGODB_CONNECTION_STRING
+Value: [paste your MongoDB connection string]
+
+Variable 2:
+Key:   JWT_SECRET
+Value: your-secret-key-at-least-32-characters
+
+
+Click "Save Changes" and wait 2 minutes
+
+
+========================================
+DONE! YOUR BACKEND IS LIVE!
+========================================
+
+Your URL: https://zahgo-backend.onrender.com
+
+Test:
+- /health
+- /swagger
+- /api/v1/categories
+
+
+========================================
+CONNECT TO FRONTEND
+========================================
+
+Update Angular environment:
+apiUrl: 'https://zahgo-backend.onrender.com/api/v1'
+
+
+========================================
+FREE TIER NOTES:
+========================================
+
+✅ 750 hours/month FREE
+⚠️ Sleeps after 15 min (wakes in 30 sec)
+✅ Perfect for small projects
+✅ No credit card needed
+
+For detailed guide, see: RENDER-DEPLOYMENT.md
+
+========================================

@@ -8,6 +8,7 @@ using ZAH.Application.DTOs;
 using ZAH.Application.Interfaces;
 using ZAH.Domain.Entities;
 using ZAH.Domain.Enums;
+using ZAH.Domain.Interfaces;
 using ZAH.Shared.Responses;
 
 namespace ZAH.Application.Services;
@@ -15,11 +16,16 @@ namespace ZAH.Application.Services;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IPasswordResetRepository _passwordResetRepository;
     private readonly IConfiguration _configuration;
 
-    public AuthService(IUserRepository userRepository, IConfiguration configuration)
+    public AuthService(
+        IUserRepository userRepository,
+        IPasswordResetRepository passwordResetRepository,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
+        _passwordResetRepository = passwordResetRepository;
         _configuration = configuration;
     }
 
@@ -29,7 +35,17 @@ public class AuthService : IAuthService
         var existingUser = await _userRepository.GetByEmailAsync(dto.Email);
         if (existingUser != null)
         {
-            return ApiResponse<AuthResponseDto>.FailureResponse("User with this email already exists");
+            return ApiResponse<AuthResponseDto>.FailureResponse("An account with this email already exists.");
+        }
+
+        // Check phone uniqueness if provided
+        if (!string.IsNullOrEmpty(dto.Phone))
+        {
+            var existingPhone = await _userRepository.GetByPhoneAsync(dto.Phone);
+            if (existingPhone != null)
+            {
+                return ApiResponse<AuthResponseDto>.FailureResponse("An account with this phone number already exists.");
+            }
         }
 
         // Hash password
@@ -45,6 +61,7 @@ public class AuthService : IAuthService
             Role = UserRole.Customer,
             RewardPoints = 200, // Welcome bonus
             IsEmailVerified = false,
+            IsPhoneVerified = false,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -89,11 +106,42 @@ public class AuthService : IAuthService
             return ApiResponse<AuthResponseDto>.FailureResponse("Invalid email or password");
         }
 
+        // Check if account is locked
+        if (user.LockedUntil.HasValue && user.LockedUntil.Value > DateTime.UtcNow)
+        {
+            var minutesLeft = (int)(user.LockedUntil.Value - DateTime.UtcNow).TotalMinutes;
+            return ApiResponse<AuthResponseDto>.FailureResponse($"Account is temporarily locked. Please try again in {minutesLeft} minutes.");
+        }
+
+        // Check if account is active
+        if (!user.IsActive)
+        {
+            return ApiResponse<AuthResponseDto>.FailureResponse("Account has been deactivated. Please contact support.");
+        }
+
         // Verify password
         if (!VerifyPassword(dto.Password, user.PasswordHash))
         {
+            // Increment failed login attempts
+            user.FailedLoginAttempts++;
+
+            // Lock account after 5 failed attempts
+            if (user.FailedLoginAttempts >= 5)
+            {
+                user.LockedUntil = DateTime.UtcNow.AddMinutes(30);
+                await _userRepository.UpdateAsync(user);
+                return ApiResponse<AuthResponseDto>.FailureResponse("Too many failed login attempts. Account locked for 30 minutes.");
+            }
+
+            await _userRepository.UpdateAsync(user);
             return ApiResponse<AuthResponseDto>.FailureResponse("Invalid email or password");
         }
+
+        // Reset failed login attempts on successful login
+        user.FailedLoginAttempts = 0;
+        user.LockedUntil = null;
+        user.LastLoginAt = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
 
         // Generate tokens
         var (accessToken, expiresAt) = GenerateAccessToken(user);
@@ -189,13 +237,87 @@ public class AuthService : IAuthService
             user.RewardPoints,
             user.Role,
             user.IsEmailVerified,
+            user.IsPhoneVerified,
             Addresses = user.Addresses
         };
 
         return ApiResponse<object>.SuccessResponse(userDto, "User retrieved successfully");
     }
 
-    private (string token, DateTime expiresAt) GenerateAccessToken(User user)
+    public async Task<ApiResponse<object>> ForgotPasswordAsync(ForgotPasswordDto dto)
+    {
+        // Find user by email
+        var user = await _userRepository.GetByEmailAsync(dto.Email);
+        
+        // Always return success to prevent email enumeration
+        if (user == null)
+        {
+            return ApiResponse<object>.SuccessResponse(null, "If an account exists with this email, you will receive reset instructions.");
+        }
+
+        // Generate secure reset token
+        var resetToken = GenerateSecureToken();
+
+        // Create password reset token entity
+        var passwordResetToken = new PasswordResetToken
+        {
+            UserId = user.Id!,
+            Token = resetToken,
+            ExpiresAt = DateTime.UtcNow.AddHours(1), // 1 hour expiration
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _passwordResetRepository.CreateAsync(passwordResetToken);
+
+        // TODO: Send email with reset link
+        // await _emailService.SendPasswordResetEmail(user.Email, resetToken);
+        // For now, log the token (REMOVE IN PRODUCTION)
+        Console.WriteLine($"Password reset token for {user.Email}: {resetToken}");
+        Console.WriteLine($"Reset link: https://yourdomain.com/reset-password?token={resetToken}");
+
+        return ApiResponse<object>.SuccessResponse(null, "If an account exists with this email, you will receive reset instructions.");
+    }
+
+    public async Task<ApiResponse<object>> ResetPasswordAsync(ResetPasswordDto dto)
+    {
+        // Find valid reset token
+        var resetToken = await _passwordResetRepository.GetByTokenAsync(dto.Token);
+
+        if (resetToken == null)
+        {
+            return ApiResponse<object>.FailureResponse("Invalid or expired reset token");
+        }
+
+        // Get user
+        var user = await _userRepository.GetByIdAsync(resetToken.UserId);
+        if (user == null)
+        {
+            return ApiResponse<object>.FailureResponse("User not found");
+        }
+
+        // Update password
+        user.PasswordHash = HashPassword(dto.NewPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
+
+        // Mark token as used
+        resetToken.IsUsed = true;
+        resetToken.UsedAt = DateTime.UtcNow;
+        await _passwordResetRepository.UpdateAsync(resetToken);
+
+        return ApiResponse<object>.SuccessResponse(null, "Password reset successfully");
+    }
+
+    public async Task<ApiResponse<object>> LogoutAsync(LogoutDto dto)
+    {
+        // Revoke the refresh token
+        await _userRepository.RevokeRefreshTokenAsync(dto.RefreshToken);
+
+        return ApiResponse<object>.SuccessResponse(null, "Logged out successfully");
+    }
+
+    public (string token, DateTime expiresAt) GenerateAccessToken(User user)
     {
         var jwtSecret = _configuration["JWT:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
         var jwtIssuer = _configuration["JWT:Issuer"] ?? "ZAH.API";
@@ -231,6 +353,14 @@ public class AuthService : IAuthService
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
         return Convert.ToBase64String(randomBytes);
+    }
+
+    private string GenerateSecureToken()
+    {
+        var randomBytes = new byte[32];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+        return Convert.ToBase64String(randomBytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
     }
 
     private string HashPassword(string password)

@@ -137,6 +137,7 @@ try
     builder.Services.AddScoped<ZAH.Application.Interfaces.IProductService, ZAH.Application.Services.ProductService>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.ICategoryService, ZAH.Application.Services.CategoryService>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.IAuthService, ZAH.Application.Services.AuthService>();
+    builder.Services.AddScoped<ZAH.Application.Interfaces.IOtpService, ZAH.Application.Services.OtpService>();
 
     // Register Repositories
     builder.Services.AddScoped<ZAH.Application.Interfaces.IProductRepository, ZAH.Infrastructure.Repositories.ProductRepository>();
@@ -144,6 +145,8 @@ try
     builder.Services.AddScoped<ZAH.Application.Interfaces.IUserRepository, ZAH.Infrastructure.Repositories.UserRepository>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.ICartRepository, ZAH.Infrastructure.Repositories.CartRepository>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.IOrderRepository, ZAH.Infrastructure.Repositories.OrderRepository>();
+    builder.Services.AddScoped<ZAH.Domain.Interfaces.IOtpRepository, ZAH.Infrastructure.Repositories.OtpRepository>();
+    builder.Services.AddScoped<ZAH.Domain.Interfaces.IPasswordResetRepository, ZAH.Infrastructure.Repositories.PasswordResetRepository>();
 
     var app = builder.Build();
 

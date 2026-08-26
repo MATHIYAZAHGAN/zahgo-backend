@@ -31,5 +31,7 @@ public class MongoDbContext
     public IMongoCollection<Order> Orders => _database.GetCollection<Order>("orders");
     public IMongoCollection<Coupon> Coupons => _database.GetCollection<Coupon>("coupons");
     public IMongoCollection<RefreshToken> RefreshTokens => _database.GetCollection<RefreshToken>("refresh_tokens");
+    public IMongoCollection<OtpVerification> OtpVerifications => _database.GetCollection<OtpVerification>("otp_verifications");
+    public IMongoCollection<PasswordResetToken> PasswordResetTokens => _database.GetCollection<PasswordResetToken>("password_reset_tokens");
     public IMongoCollection<AuditLog> AuditLogs => _database.GetCollection<AuditLog>("audit_logs");
 }

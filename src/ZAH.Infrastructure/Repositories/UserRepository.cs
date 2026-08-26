@@ -24,6 +24,11 @@ public class UserRepository : IUserRepository
         return await _context.Users.Find(u => u.Email == email).FirstOrDefaultAsync();
     }
 
+    public async Task<User?> GetByPhoneAsync(string phone)
+    {
+        return await _context.Users.Find(u => u.Phone == phone).FirstOrDefaultAsync();
+    }
+
     public async Task<User> CreateAsync(User user)
     {
         await _context.Users.InsertOneAsync(user);
@@ -55,5 +60,15 @@ public class UserRepository : IUserRepository
     public async Task UpdateRefreshTokenAsync(RefreshToken refreshToken)
     {
         await _context.RefreshTokens.ReplaceOneAsync(rt => rt.Id == refreshToken.Id, refreshToken);
+    }
+
+    public async Task RevokeRefreshTokenAsync(string token)
+    {
+        var refreshToken = await GetRefreshTokenAsync(token);
+        if (refreshToken != null)
+        {
+            refreshToken.IsRevoked = true;
+            await UpdateRefreshTokenAsync(refreshToken);
+        }
     }
 }

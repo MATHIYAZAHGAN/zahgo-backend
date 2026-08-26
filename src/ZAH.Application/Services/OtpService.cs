@@ -15,17 +15,20 @@ public class OtpService : IOtpService
     private readonly IUserRepository _userRepository;
     private readonly ILogger<OtpService> _logger;
     private readonly IAuthService _authService;
+    private readonly ISmsService _smsService;
 
     public OtpService(
         IOtpRepository otpRepository,
         IUserRepository userRepository,
         ILogger<OtpService> logger,
-        IAuthService authService)
+        IAuthService authService,
+        ISmsService smsService)
     {
         _otpRepository = otpRepository;
         _userRepository = userRepository;
         _logger = logger;
         _authService = authService;
+        _smsService = smsService;
     }
 
     public async Task<ApiResponse<object>> SendOtpAsync(SendOtpDto dto)
@@ -70,9 +73,17 @@ public class OtpService : IOtpService
 
             await _otpRepository.CreateAsync(otpVerification);
 
-            // TODO: Send OTP via SMS service (Twilio, AWS SNS, etc.)
-            // For now, log it (REMOVE IN PRODUCTION)
-            _logger.LogInformation("OTP for {Phone}: {Otp} (THIS SHOULD NOT BE LOGGED IN PRODUCTION)", dto.Phone, otp);
+            // Send OTP via SMS service
+            var smsMessage = $"Your ZAHGO verification code is: {otp}. Valid for 10 minutes. Do not share this code.";
+            var smsSent = await _smsService.SendAsync(dto.Phone, smsMessage);
+
+            if (!smsSent)
+            {
+                _logger.LogError("Failed to send SMS to {Phone}", dto.Phone);
+                // Still return success to user for security (don't reveal SMS failures)
+                // But log the OTP for development/debugging
+                _logger.LogInformation("OTP for {Phone}: {Otp} (SMS FAILED - LOGGED FOR DEBUGGING)", dto.Phone, otp);
+            }
 
             // In production, replace above with actual SMS sending:
             // await _smsService.SendAsync(dto.Phone, $"Your ZAHGO verification code is: {otp}. Valid for 10 minutes.");

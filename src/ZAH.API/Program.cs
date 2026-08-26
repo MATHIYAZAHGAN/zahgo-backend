@@ -138,6 +138,10 @@ try
     builder.Services.AddScoped<ZAH.Application.Interfaces.ICategoryService, ZAH.Application.Services.CategoryService>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.IAuthService, ZAH.Application.Services.AuthService>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.IOtpService, ZAH.Application.Services.OtpService>();
+    
+    // Register SMS Service
+    builder.Services.AddScoped<ZAH.Application.Services.ISmsService, ZAH.Application.Services.SmsService>();
+    builder.Services.AddHttpClient<ZAH.Application.Services.ISmsService, ZAH.Application.Services.SmsService>();
 
     // Register Repositories
     builder.Services.AddScoped<ZAH.Application.Interfaces.IProductRepository, ZAH.Infrastructure.Repositories.ProductRepository>();

@@ -95,7 +95,13 @@ cd src/ZAH.API
 dotnet user-secrets init
 dotnet user-secrets set "JWT:Secret" "your-256-bit-secret-key-here-minimum-32-characters"
 dotnet user-secrets set "MongoDB:ConnectionString" "mongodb://localhost:27017"
+dotnet user-secrets set "Cashfree:ClientId" "YOUR_SANDBOX_APP_ID"
+dotnet user-secrets set "Cashfree:ClientSecret" "YOUR_SANDBOX_SECRET_KEY"
 ```
+
+Cashfree credentials are server-only. Never add them to Angular environment files, `public/`, source control, Docker build arguments, or browser code. Use the sandbox credentials while `ASPNETCORE_ENVIRONMENT=Development`; configure production credentials only in the production secret manager. The production webhook is `https://api.zahgo.com/api/v1/payments/cashfree/webhook` and the return URL is `https://zahgo.com/payment/callback`.
+
+The payment API recalculates the amount from MongoDB product records and the authenticated user's saved address. Angular receives only a Cashfree payment session ID. The callback and signed webhook both verify the Cashfree order and payment amount before transitioning the order to `PAID`.
 
 ### 4. Restore packages
 ```bash

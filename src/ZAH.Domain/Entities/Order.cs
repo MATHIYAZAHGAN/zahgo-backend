@@ -26,11 +26,27 @@ public class Order : BaseEntity
     public string? ReturnReason { get; set; }
     public string? PaymentTransactionId { get; set; }
     public string? PaymentGatewayOrderId { get; set; }
+    public string? PaymentSessionId { get; set; }
+    public string PaymentProvider { get; set; } = "";
+    public List<PaymentAttempt> PaymentAttempts { get; set; } = new();
+    public List<string> ProcessedWebhookEventIds { get; set; } = new();
+    public string? PaymentVerificationStatus { get; set; }
     public DateTime? PaidAt { get; set; }
     public DateTime? ShippedAt { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public DateTime? CancelledAt { get; set; }
     public string? IdempotencyKey { get; set; }
+}
+
+public class PaymentAttempt
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string? ProviderPaymentId { get; set; }
+    public string Status { get; set; } = "PENDING";
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "INR";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CompletedAt { get; set; }
 }
 
 public class OrderItem

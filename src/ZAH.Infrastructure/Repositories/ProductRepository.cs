@@ -171,4 +171,38 @@ public class OrderRepository : IOrderRepository
         order.UpdatedAt = DateTime.UtcNow;
         await _context.Orders.ReplaceOneAsync(o => o.Id == order.Id, order, cancellationToken: ct);
     }
+
+    public async Task<Order?> GetByCashfreeOrderIdAsync(string cashfreeOrderId, CancellationToken ct = default)
+    {
+        return await _context.Orders.Find(o => o.PaymentGatewayOrderId == cashfreeOrderId && !o.IsDeleted).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<Order?> GetByOrderNumberAsync(string orderNumber, CancellationToken ct = default)
+    {
+        return await _context.Orders.Find(o => o.OrderNumber == orderNumber && !o.IsDeleted).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<Order?> GetByIdempotencyKeyAsync(string userId, string idempotencyKey, CancellationToken ct = default)
+    {
+        return await _context.Orders.Find(o => o.UserId == userId && o.IdempotencyKey == idempotencyKey && !o.IsDeleted).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<bool> TryUpdatePaymentAsync(Order order, string? eventId, CancellationToken ct = default)
+    {
+        var filter = Builders<Order>.Filter.Eq(item => item.Id, order.Id) & Builders<Order>.Filter.Ne(item => item.PaymentStatus, PaymentStatus.Paid);
+        if (!string.IsNullOrWhiteSpace(eventId)) filter &= Builders<Order>.Filter.Not(Builders<Order>.Filter.AnyEq(item => item.ProcessedWebhookEventIds, eventId));
+        order.UpdatedAt = DateTime.UtcNow;
+        var result = await _context.Orders.ReplaceOneAsync(filter, order, cancellationToken: ct);
+        return result.ModifiedCount == 1;
+    }
+}
+
+public class CouponRepository : ICouponRepository
+{
+    private readonly MongoDbContext _context;
+
+    public CouponRepository(MongoDbContext context) => _context = context;
+
+    public async Task<Coupon?> GetByCodeAsync(string code, CancellationToken ct = default) =>
+        await _context.Coupons.Find(c => c.Code == code && c.IsActive && !c.IsDeleted).FirstOrDefaultAsync(ct);
 }

@@ -244,6 +244,10 @@ public class AuthService : IAuthService
         return ApiResponse<object>.SuccessResponse(userDto, "User retrieved successfully");
     }
 
+    public Task<User?> GetUserEntityByIdAsync(string userId) => _userRepository.GetByIdAsync(userId);
+
+    public Task<User> UpdateUserAsync(User user) => _userRepository.UpdateAsync(user);
+
     public async Task<ApiResponse<object>> ForgotPasswordAsync(ForgotPasswordDto dto)
     {
         // Find user by email

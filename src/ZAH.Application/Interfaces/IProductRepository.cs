@@ -33,4 +33,13 @@ public interface IOrderRepository
     Task<List<Order>> GetByUserIdAsync(string userId, CancellationToken ct = default);
     Task<Order> CreateAsync(Order order, CancellationToken ct = default);
     Task UpdateAsync(Order order, CancellationToken ct = default);
+    Task<Order?> GetByCashfreeOrderIdAsync(string cashfreeOrderId, CancellationToken ct = default);
+    Task<Order?> GetByOrderNumberAsync(string orderNumber, CancellationToken ct = default);
+    Task<Order?> GetByIdempotencyKeyAsync(string userId, string idempotencyKey, CancellationToken ct = default);
+    Task<bool> TryUpdatePaymentAsync(Order order, string? eventId, CancellationToken ct = default);
+}
+
+public interface ICouponRepository
+{
+    Task<Coupon?> GetByCodeAsync(string code, CancellationToken ct = default);
 }

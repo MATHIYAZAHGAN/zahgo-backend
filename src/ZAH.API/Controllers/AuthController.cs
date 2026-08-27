@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ZAH.Application.DTOs;
 using ZAH.Application.Interfaces;
+using ZAH.Domain.Entities;
+using ZAH.Domain.Enums;
 
 namespace ZAH.API.Controllers;
 
@@ -171,5 +173,54 @@ public class AuthController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    [HttpPost("addresses")]
+    [Authorize]
+    public async Task<IActionResult> AddAddress([FromBody] CreateAddressDto dto)
+    {
+        var userId = User.FindFirst("userId")?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { success = false, message = "Invalid or missing token" });
+
+        var user = await _authService.GetUserEntityByIdAsync(userId);
+        if (user == null) return NotFound(new { success = false, message = "User not found" });
+
+        if (!Enum.TryParse<AddressType>(dto.Type, true, out var addressType))
+            return BadRequest(new { success = false, message = "Invalid address type" });
+
+        if (dto.IsDefault || user.Addresses.Count == 0)
+            user.Addresses.ForEach(address => address.IsDefault = false);
+
+        var address = new Address
+        {
+            FullName = dto.FullName,
+            Phone = dto.Phone,
+            StreetAddress = dto.StreetAddress,
+            City = dto.City,
+            State = dto.State,
+            Pincode = dto.Pincode,
+            Landmark = dto.Landmark,
+            Type = addressType,
+            IsDefault = dto.IsDefault || user.Addresses.Count == 0
+        };
+        user.Addresses.Insert(0, address);
+        await _authService.UpdateUserAsync(user);
+        return Ok(new { success = true, message = "Address saved successfully", data = address });
+    }
+
+    [HttpDelete("addresses/{addressId}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteAddress(string addressId)
+    {
+        var userId = User.FindFirst("userId")?.Value;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized(new { success = false, message = "Invalid or missing token" });
+        var user = await _authService.GetUserEntityByIdAsync(userId);
+        if (user == null) return NotFound(new { success = false, message = "User not found" });
+        var address = user.Addresses.FirstOrDefault(item => item.Id == addressId);
+        if (address == null) return NotFound(new { success = false, message = "Address not found" });
+        user.Addresses.Remove(address);
+        if (address.IsDefault && user.Addresses.Count > 0) user.Addresses[0].IsDefault = true;
+        await _authService.UpdateUserAsync(user);
+        return Ok(new { success = true, message = "Address deleted successfully" });
     }
 }

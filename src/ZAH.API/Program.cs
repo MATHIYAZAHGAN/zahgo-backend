@@ -1,9 +1,12 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using ZAH.API.Middleware;
+using ZAH.Application.Interfaces;
 using ZAH.Infrastructure.MongoDB;
+using ZAH.Infrastructure.Payments;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -31,7 +34,14 @@ try
     builder.Configuration.Sources.Clear();
     builder.Configuration
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
-        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false);
+
+    if (builder.Environment.IsDevelopment())
+    {
+        builder.Configuration.AddUserSecrets<Program>(optional: true);
+    }
+
+    builder.Configuration
         .AddEnvironmentVariables();
 
     // Add Serilog
@@ -53,6 +63,10 @@ try
         options.DatabaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "zahgo";
     });
     builder.Services.AddSingleton<MongoDbContext>();
+    builder.Services.Configure<CashfreeOptions>(builder.Configuration.GetSection("Cashfree"));
+    builder.Services.AddHttpClient<ICashfreePaymentClient, CashfreePaymentClient>();
+    builder.Services.AddScoped<ZAH.Application.Interfaces.IPaymentService, ZAH.Application.Services.PaymentService>();
+    builder.Services.AddScoped<ZAH.Application.Interfaces.ICouponRepository, ZAH.Infrastructure.Repositories.CouponRepository>();
 
     // JWT Configuration
     var jwtSecret = builder.Configuration["JWT:Secret"];
@@ -118,7 +132,8 @@ try
     });
 
     // Add Controllers
-    builder.Services.AddControllers();
+    builder.Services.AddControllers()
+        .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
     // Add Response Compression
     builder.Services.AddResponseCompression(options =>

@@ -28,8 +28,8 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         {
             message.Content = JsonContent.Create(content);
         }
-        var clientId = (_options.ClientId ?? string.Empty).Trim();
-        var clientSecret = (_options.ClientSecret ?? string.Empty).Trim();
+        var clientId = CleanKey(_options.ClientId);
+        var clientSecret = CleanKey(_options.ClientSecret);
         var apiVersion = string.IsNullOrWhiteSpace(_options.ApiVersion) ? "2023-08-01" : _options.ApiVersion.Trim();
 
         message.Headers.TryAddWithoutValidation("x-client-id", clientId);
@@ -43,6 +43,12 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         }
 
         return message;
+    }
+
+    private static string CleanKey(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        return new string(value.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
     }
 
     public async Task<CashfreeOrderResult> CreateOrderAsync(string orderId, decimal amount, string name, string email, string? phone, string returnUrl, string webhookUrl, string idempotencyKey, CancellationToken ct)
@@ -64,9 +70,9 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
         {
-            var cid = (_options.ClientId ?? string.Empty).Trim();
+            var cid = CleanKey(_options.ClientId);
             var maskedCid = cid.Length > 8 ? $"{cid[..4]}...{cid[^4..]}" : cid;
-            var sec = (_options.ClientSecret ?? string.Empty).Trim();
+            var sec = CleanKey(_options.ClientSecret);
             var maskedSec = sec.Length > 8 ? $"{sec[..4]}...{sec[^4..]}" : sec;
 
             throw new InvalidOperationException($"Cashfree Gateway Error ({response.StatusCode}): {body} (Target: {_httpClient.BaseAddress}, AppID: {maskedCid} [Len {cid.Length}], Secret: {maskedSec} [Len {sec.Length}])");

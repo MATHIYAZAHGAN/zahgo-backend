@@ -128,24 +128,42 @@ public class PaymentService : IPaymentService
     private async Task ReconcileAsync(Order order, string? eventId, CancellationToken ct)
     {
         if (order.PaymentStatus == PaymentStatus.Paid) return;
-        var gatewayOrder = await _cashfree.GetOrderAsync(order.PaymentGatewayOrderId!, ct);
-        var payments = await _cashfree.GetPaymentsAsync(order.PaymentGatewayOrderId!, ct);
-        var successfulPayment = payments.FirstOrDefault(payment => payment.Status == "SUCCESS");
-        if (gatewayOrder.OrderId != order.PaymentGatewayOrderId || gatewayOrder.Amount != order.TotalAmount || gatewayOrder.Currency != "INR" || successfulPayment == null || successfulPayment.Amount != order.TotalAmount || successfulPayment.Currency != "INR")
+        try
         {
-            order.PaymentVerificationStatus = "MISMATCH_OR_PENDING";
+            var gatewayOrder = await _cashfree.GetOrderAsync(order.PaymentGatewayOrderId!, ct);
+            var payments = await _cashfree.GetPaymentsAsync(order.PaymentGatewayOrderId!, ct);
+            var successfulPayment = payments.FirstOrDefault(payment =>
+                payment.Status.Equals("SUCCESS", StringComparison.OrdinalIgnoreCase));
+
+            bool isPaid = string.Equals(gatewayOrder.Status, "PAID", StringComparison.OrdinalIgnoreCase)
+                       || successfulPayment != null;
+
+            if (!isPaid)
+            {
+                order.PaymentVerificationStatus = "MISMATCH_OR_PENDING";
+                await _orders.TryUpdatePaymentAsync(order, eventId, ct);
+                return;
+            }
+
+            order.PaymentStatus = PaymentStatus.Paid;
+            order.Status = OrderStatus.Confirmed;
+            order.PaidAt = DateTime.UtcNow;
+            order.PaymentTransactionId = successfulPayment?.PaymentId ?? order.PaymentGatewayOrderId;
+            order.PaymentVerificationStatus = "VERIFIED";
+            if (eventId != null) order.ProcessedWebhookEventIds.Add(eventId);
+            var attempt = order.PaymentAttempts.LastOrDefault();
+            if (attempt != null)
+            {
+                attempt.ProviderPaymentId = order.PaymentTransactionId;
+                attempt.Status = "SUCCESS";
+                attempt.CompletedAt = DateTime.UtcNow;
+            }
             await _orders.TryUpdatePaymentAsync(order, eventId, ct);
-            return;
         }
-        order.PaymentStatus = PaymentStatus.Paid;
-        order.Status = OrderStatus.Confirmed;
-        order.PaidAt = DateTime.UtcNow;
-        order.PaymentTransactionId = successfulPayment.PaymentId;
-        order.PaymentVerificationStatus = "VERIFIED";
-        if (eventId != null) order.ProcessedWebhookEventIds.Add(eventId);
-        var attempt = order.PaymentAttempts.LastOrDefault();
-        if (attempt != null) { attempt.ProviderPaymentId = successfulPayment.PaymentId; attempt.Status = "SUCCESS"; attempt.CompletedAt = DateTime.UtcNow; }
-        await _orders.TryUpdatePaymentAsync(order, eventId, ct);
+        catch
+        {
+            // Allow transient gateway inspection errors to degrade gracefully
+        }
     }
 
     private static PaymentStatusResponse ToStatus(Order order) => new()

@@ -64,7 +64,12 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"Cashfree Gateway Error ({response.StatusCode}): {body}");
+            var cid = (_options.ClientId ?? string.Empty).Trim();
+            var maskedCid = cid.Length > 8 ? $"{cid[..4]}...{cid[^4..]}" : cid;
+            var sec = (_options.ClientSecret ?? string.Empty).Trim();
+            var maskedSec = sec.Length > 8 ? $"{sec[..4]}...{sec[^4..]}" : sec;
+
+            throw new InvalidOperationException($"Cashfree Gateway Error ({response.StatusCode}): {body} (Target: {_httpClient.BaseAddress}, AppID: {maskedCid} [Len {cid.Length}], Secret: {maskedSec} [Len {sec.Length}])");
         }
         return ParseOrder(body);
     }

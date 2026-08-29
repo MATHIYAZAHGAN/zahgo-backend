@@ -67,7 +67,7 @@ public class PaymentService : IPaymentService
         var discount = coupon != null && coupon.ExpiryDate > DateTime.UtcNow && subtotal >= coupon.MinOrderAmount
             ? Math.Min(subtotal * coupon.DiscountPercentage / 100m, coupon.MaxDiscount ?? decimal.MaxValue)
             : 0m;
-        var shipping = subtotal >= 1999m ? 0m : 149m;
+        var shipping = subtotal == 0m ? 0m : 1m;
         var tax = decimal.Round((subtotal - discount) * 0.05m, 0, MidpointRounding.AwayFromZero);
         var total = decimal.Round(Math.Max(0, subtotal - discount + shipping + tax), 2);
         var orderNumber = $"ZAH-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..42];

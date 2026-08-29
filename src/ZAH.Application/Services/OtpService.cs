@@ -75,7 +75,7 @@ public class OtpService : IOtpService
 
             // Send OTP via SMS service
             var smsMessage = $"Your ZAHGO verification code is: {otp}. Valid for 10 minutes. Do not share this code.";
-            var smsSent = await _smsService.SendAsync(dto.Phone, smsMessage);
+            var smsSent = await _smsService.SendOtpAsync(dto.Phone, otp, smsMessage);
 
             if (!smsSent)
             {

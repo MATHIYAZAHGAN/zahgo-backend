@@ -47,3 +47,15 @@ public class AuthResponseDto
     public DateTime ExpiresAt { get; set; }
     public int RewardPoints { get; set; }
 }
+
+public class GoogleAuthDto
+{
+    [Required(ErrorMessage = "Email is required")]
+    [EmailAddress(ErrorMessage = "Invalid email format")]
+    public string Email { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+    public string? FirebaseUid { get; set; }
+    public string? PhotoUrl { get; set; }
+    public string? IdToken { get; set; }
+}

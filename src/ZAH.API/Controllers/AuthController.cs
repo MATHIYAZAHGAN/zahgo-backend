@@ -59,6 +59,23 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("google-login")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleAuthDto dto)
+    {
+        _logger.LogInformation("Google login attempt for email: {Email}", dto.Email);
+
+        var result = await _authService.GoogleLoginAsync(dto);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning("Google login failed for email: {Email}", dto.Email);
+            return Unauthorized(new { success = false, message = result.Message });
+        }
+
+        _logger.LogInformation("Google login successful for email: {Email}", dto.Email);
+        return Ok(result);
+    }
+
     [HttpPost("send-otp")]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpDto dto)
     {

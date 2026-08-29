@@ -172,6 +172,72 @@ public class AuthService : IAuthService
         return ApiResponse<AuthResponseDto>.SuccessResponse(response, "Login successful");
     }
 
+    public async Task<ApiResponse<AuthResponseDto>> GoogleLoginAsync(GoogleAuthDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email))
+        {
+            return ApiResponse<AuthResponseDto>.FailureResponse("Email is required for Google login.");
+        }
+
+        var user = await _userRepository.GetByEmailAsync(dto.Email);
+        if (user == null)
+        {
+            // Register new user authenticated via Google
+            user = new User
+            {
+                Name = !string.IsNullOrWhiteSpace(dto.Name) ? dto.Name : dto.Email.Split('@')[0],
+                Email = dto.Email,
+                PasswordHash = string.Empty, // Google user
+                Role = UserRole.Customer,
+                RewardPoints = 200, // Welcome bonus
+                IsEmailVerified = true,
+                IsPhoneVerified = false,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _userRepository.CreateAsync(user);
+        }
+        else
+        {
+            // Existing user login via Google
+            user.IsEmailVerified = true;
+            user.LastLoginAt = DateTime.UtcNow;
+            if (!string.IsNullOrWhiteSpace(dto.Name) && (string.IsNullOrWhiteSpace(user.Name) || user.Name.StartsWith("User ")))
+            {
+                user.Name = dto.Name;
+            }
+            await _userRepository.UpdateAsync(user);
+        }
+
+        // Generate JWT tokens
+        var (accessToken, expiresAt) = GenerateAccessToken(user);
+        var refreshToken = GenerateRefreshToken();
+
+        var refreshTokenEntity = new RefreshToken
+        {
+            UserId = user.Id!,
+            Token = refreshToken,
+            ExpiresAt = DateTime.UtcNow.AddDays(30),
+            CreatedAt = DateTime.UtcNow
+        };
+        await _userRepository.SaveRefreshTokenAsync(refreshTokenEntity);
+
+        var response = new AuthResponseDto
+        {
+            UserId = user.Id!,
+            Name = user.Name,
+            Email = user.Email,
+            Phone = user.Phone,
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = expiresAt,
+            RewardPoints = user.RewardPoints
+        };
+
+        return ApiResponse<AuthResponseDto>.SuccessResponse(response, "Logged in via Google successfully");
+    }
+
     public async Task<ApiResponse<AuthResponseDto>> RefreshTokenAsync(string refreshToken)
     {
         var storedToken = await _userRepository.GetRefreshTokenAsync(refreshToken);

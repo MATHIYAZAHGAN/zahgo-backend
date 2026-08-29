@@ -26,6 +26,7 @@ public class CashfreePaymentClient : ICashfreePaymentClient
     public async Task<CashfreeOrderResult> CreateOrderAsync(string orderId, decimal amount, string name, string email, string? phone, string returnUrl, string webhookUrl, string idempotencyKey, CancellationToken ct)
     {
         EnsureConfigured();
+        var cleanPhone = CleanPhoneForCashfree(phone);
         var orderMeta = new Dictionary<string, string> { ["return_url"] = returnUrl };
         if (!string.IsNullOrWhiteSpace(webhookUrl)) orderMeta["notify_url"] = webhookUrl;
         var request = new
@@ -33,7 +34,7 @@ public class CashfreePaymentClient : ICashfreePaymentClient
             order_id = orderId,
             order_amount = amount,
             order_currency = "INR",
-            customer_details = new { customer_id = orderId, customer_name = name, customer_email = email, customer_phone = phone ?? "9999999999" },
+            customer_details = new { customer_id = orderId, customer_name = name, customer_email = email, customer_phone = cleanPhone },
             order_meta = orderMeta
         };
         using var message = new HttpRequestMessage(HttpMethod.Post, "orders") { Content = JsonContent.Create(request) };
@@ -42,6 +43,16 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         var body = await response.Content.ReadAsStringAsync(ct);
         response.EnsureSuccessStatusCode();
         return ParseOrder(body);
+    }
+
+    private static string CleanPhoneForCashfree(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) return "9999999999";
+        var digitsOnly = new string(phone.Where(char.IsDigit).ToArray());
+        if (digitsOnly.Length == 12 && digitsOnly.StartsWith("91")) return digitsOnly.Substring(2);
+        if (digitsOnly.Length == 11 && digitsOnly.StartsWith("0")) return digitsOnly.Substring(1);
+        if (digitsOnly.Length == 10) return digitsOnly;
+        return digitsOnly.Length >= 10 ? digitsOnly.Substring(digitsOnly.Length - 10) : "9999999999";
     }
 
     public async Task<CashfreeOrderResult> GetOrderAsync(string orderId, CancellationToken ct)

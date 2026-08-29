@@ -63,7 +63,40 @@ try
         options.DatabaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "zahgo";
     });
     builder.Services.AddSingleton<MongoDbContext>();
-    builder.Services.Configure<CashfreeOptions>(builder.Configuration.GetSection("Cashfree"));
+
+    // Cashfree Gateway Configuration - Reads Render Env Variables in Production, appsettings in Development
+    var cashfreeEnv = Environment.GetEnvironmentVariable("CASHFREE_ENVIRONMENT")
+                   ?? Environment.GetEnvironmentVariable("Cashfree__Environment")
+                   ?? builder.Configuration["Cashfree:Environment"]
+                   ?? "sandbox";
+
+    var isProductionEnv = cashfreeEnv.Equals("production", StringComparison.OrdinalIgnoreCase);
+
+    var cashfreeBaseUrl = isProductionEnv
+        ? "https://api.cashfree.com/pg"
+        : (builder.Configuration["Cashfree:ApiBaseUrl"] ?? "https://sandbox.cashfree.com/pg");
+
+    var cashfreeClientId = Environment.GetEnvironmentVariable("CASHFREE_CLIENT_ID")
+                        ?? Environment.GetEnvironmentVariable("Cashfree__ClientId")
+                        ?? builder.Configuration["Cashfree:ClientId"]
+                        ?? string.Empty;
+
+    var cashfreeClientSecret = Environment.GetEnvironmentVariable("CASHFREE_CLIENT_SECRET")
+                            ?? Environment.GetEnvironmentVariable("Cashfree__ClientSecret")
+                            ?? builder.Configuration["Cashfree:ClientSecret"]
+                            ?? string.Empty;
+
+    builder.Services.Configure<CashfreeOptions>(options =>
+    {
+        options.Environment = cashfreeEnv;
+        options.ApiBaseUrl = cashfreeBaseUrl;
+        options.ClientId = cashfreeClientId;
+        options.ClientSecret = cashfreeClientSecret;
+        options.ReturnUrl = builder.Configuration["Cashfree:ReturnUrl"] ?? "https://zahgo.com/payment/callback";
+        options.WebhookUrl = builder.Configuration["Cashfree:WebhookUrl"] ?? "";
+        options.ApiVersion = builder.Configuration["Cashfree:ApiVersion"] ?? "2026-01-01";
+    });
+
     builder.Services.AddHttpClient<ICashfreePaymentClient, CashfreePaymentClient>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.IPaymentService, ZAH.Application.Services.PaymentService>();
     builder.Services.AddScoped<ZAH.Application.Interfaces.ICouponRepository, ZAH.Infrastructure.Repositories.CouponRepository>();

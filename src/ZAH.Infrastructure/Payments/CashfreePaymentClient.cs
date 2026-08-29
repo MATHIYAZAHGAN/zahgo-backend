@@ -26,7 +26,10 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         var message = new HttpRequestMessage(method, relativeUrl);
         if (content != null)
         {
-            message.Content = JsonContent.Create(content);
+            var json = JsonSerializer.Serialize(content);
+            var contentHeader = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+            message.Content = new StringContent(json, Encoding.UTF8);
+            message.Content.Headers.ContentType = contentHeader;
         }
         var clientId = CleanKey(_options.ClientId);
         var clientSecret = CleanKey(_options.ClientSecret);

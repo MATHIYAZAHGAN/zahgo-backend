@@ -16,20 +16,41 @@ public class CashfreePaymentClient : ICashfreePaymentClient
     {
         _httpClient = httpClient;
         _options = options.Value;
-        _httpClient.BaseAddress = new Uri(_options.ApiBaseUrl.TrimEnd('/') + "/");
-        _httpClient.DefaultRequestHeaders.Add("x-client-id", _options.ClientId);
-        _httpClient.DefaultRequestHeaders.Add("x-client-secret", _options.ClientSecret);
-        _httpClient.DefaultRequestHeaders.Add("x-api-version", _options.ApiVersion);
-        _httpClient.DefaultRequestHeaders.Add("accept", "application/json");
+        var baseUrl = (_options.ApiBaseUrl ?? "https://api.cashfree.com/pg").TrimEnd('/') + "/";
+        _httpClient.BaseAddress = new Uri(baseUrl);
+    }
+
+    private HttpRequestMessage CreateRequestMessage(HttpMethod method, string relativeUrl, object? content = null, string? idempotencyKey = null)
+    {
+        EnsureConfigured();
+        var message = new HttpRequestMessage(method, relativeUrl);
+        if (content != null)
+        {
+            message.Content = JsonContent.Create(content);
+        }
+        var clientId = (_options.ClientId ?? string.Empty).Trim();
+        var clientSecret = (_options.ClientSecret ?? string.Empty).Trim();
+        var apiVersion = string.IsNullOrWhiteSpace(_options.ApiVersion) ? "2023-08-01" : _options.ApiVersion.Trim();
+
+        message.Headers.TryAddWithoutValidation("x-client-id", clientId);
+        message.Headers.TryAddWithoutValidation("x-client-secret", clientSecret);
+        message.Headers.TryAddWithoutValidation("x-api-version", apiVersion);
+        message.Headers.TryAddWithoutValidation("accept", "application/json");
+
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            message.Headers.TryAddWithoutValidation("x-idempotency-key", idempotencyKey);
+        }
+
+        return message;
     }
 
     public async Task<CashfreeOrderResult> CreateOrderAsync(string orderId, decimal amount, string name, string email, string? phone, string returnUrl, string webhookUrl, string idempotencyKey, CancellationToken ct)
     {
-        EnsureConfigured();
         var cleanPhone = CleanPhoneForCashfree(phone);
         var orderMeta = new Dictionary<string, string> { ["return_url"] = returnUrl };
         if (!string.IsNullOrWhiteSpace(webhookUrl)) orderMeta["notify_url"] = webhookUrl;
-        var request = new
+        var requestBody = new
         {
             order_id = orderId,
             order_amount = amount,
@@ -37,8 +58,8 @@ public class CashfreePaymentClient : ICashfreePaymentClient
             customer_details = new { customer_id = orderId, customer_name = name, customer_email = email, customer_phone = cleanPhone },
             order_meta = orderMeta
         };
-        using var message = new HttpRequestMessage(HttpMethod.Post, "orders") { Content = JsonContent.Create(request) };
-        message.Headers.Add("x-idempotency-key", idempotencyKey);
+
+        using var message = CreateRequestMessage(HttpMethod.Post, "orders", requestBody, idempotencyKey);
         using var response = await _httpClient.SendAsync(message, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
@@ -60,19 +81,25 @@ public class CashfreePaymentClient : ICashfreePaymentClient
 
     public async Task<CashfreeOrderResult> GetOrderAsync(string orderId, CancellationToken ct)
     {
-        EnsureConfigured();
-        using var response = await _httpClient.GetAsync($"orders/{Uri.EscapeDataString(orderId)}", ct);
+        using var message = CreateRequestMessage(HttpMethod.Get, $"orders/{Uri.EscapeDataString(orderId)}");
+        using var response = await _httpClient.SendAsync(message, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Cashfree GetOrder Error ({response.StatusCode}): {body}");
+        }
         return ParseOrder(body);
     }
 
     public async Task<IReadOnlyList<CashfreePaymentResult>> GetPaymentsAsync(string orderId, CancellationToken ct)
     {
-        EnsureConfigured();
-        using var response = await _httpClient.GetAsync($"orders/{Uri.EscapeDataString(orderId)}/payments", ct);
+        using var message = CreateRequestMessage(HttpMethod.Get, $"orders/{Uri.EscapeDataString(orderId)}/payments");
+        using var response = await _httpClient.SendAsync(message, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Cashfree GetPayments Error ({response.StatusCode}): {body}");
+        }
         using var document = JsonDocument.Parse(body);
         return document.RootElement.EnumerateArray().Select(payment => new CashfreePaymentResult(
             payment.GetProperty("cf_payment_id").GetString() ?? "",
@@ -87,7 +114,7 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         if (string.IsNullOrWhiteSpace(signature) || string.IsNullOrWhiteSpace(timestamp)) return false;
         if (!long.TryParse(timestamp, out var milliseconds) || Math.Abs((DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeMilliseconds(milliseconds)).TotalMinutes) > 5) return false;
         var payload = timestamp + rawBody;
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_options.ClientSecret));
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes((_options.ClientSecret ?? string.Empty).Trim()));
         var expected = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
         return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(signature));
     }
@@ -100,7 +127,7 @@ public class CashfreePaymentClient : ICashfreePaymentClient
     private void EnsureConfigured()
     {
         if (string.IsNullOrWhiteSpace(_options.ClientId) || string.IsNullOrWhiteSpace(_options.ClientSecret))
-            throw new InvalidOperationException("Cashfree sandbox credentials are not configured on the server");
+            throw new InvalidOperationException($"Cashfree credentials missing in server config (Env: {_options.Environment}, BaseUrl: {_options.ApiBaseUrl})");
     }
 
     private static CashfreeOrderResult ParseOrder(string body)

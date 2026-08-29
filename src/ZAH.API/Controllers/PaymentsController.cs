@@ -11,17 +11,30 @@ namespace ZAH.API.Controllers;
 public class PaymentsController : ControllerBase
 {
     private readonly IPaymentService _payments;
+    private readonly ILogger<PaymentsController> _logger;
 
-    public PaymentsController(IPaymentService payments) => _payments = payments;
+    public PaymentsController(IPaymentService payments, ILogger<PaymentsController> logger)
+    {
+        _payments = payments;
+        _logger = logger;
+    }
 
     [HttpPost("create-order")]
     [Authorize]
     public async Task<IActionResult> CreateOrder([FromBody] CreatePaymentOrderRequest request, CancellationToken ct)
     {
-        var userId = User.FindFirst("userId")?.Value;
-        if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
-        var result = await _payments.CreateOrderAsync(userId, request, ct);
-        return Ok(new { success = true, data = result });
+        try
+        {
+            var userId = User.FindFirst("userId")?.Value;
+            if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+            var result = await _payments.CreateOrderAsync(userId, request, ct);
+            return Ok(new { success = true, data = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating payment order: {Message}", ex.Message);
+            return BadRequest(new { success = false, message = ex.Message });
+        }
     }
 
     [HttpGet("status/{orderId}")]

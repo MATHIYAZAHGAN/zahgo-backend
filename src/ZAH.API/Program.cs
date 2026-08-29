@@ -94,7 +94,7 @@ try
         options.ClientSecret = cashfreeClientSecret;
         options.ReturnUrl = builder.Configuration["Cashfree:ReturnUrl"] ?? "https://zahgo.com/payment/callback";
         options.WebhookUrl = builder.Configuration["Cashfree:WebhookUrl"] ?? "";
-        options.ApiVersion = builder.Configuration["Cashfree:ApiVersion"] ?? "2026-01-01";
+        options.ApiVersion = builder.Configuration["Cashfree:ApiVersion"] ?? "2023-08-01";
     });
 
     builder.Services.AddHttpClient<ICashfreePaymentClient, CashfreePaymentClient>();

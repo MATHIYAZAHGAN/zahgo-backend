@@ -41,7 +41,10 @@ public class CashfreePaymentClient : ICashfreePaymentClient
         message.Headers.Add("x-idempotency-key", idempotencyKey);
         using var response = await _httpClient.SendAsync(message, ct);
         var body = await response.Content.ReadAsStringAsync(ct);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Cashfree Gateway Error ({response.StatusCode}): {body}");
+        }
         return ParseOrder(body);
     }
 
